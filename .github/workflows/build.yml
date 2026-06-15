@@ -1,79 +1,67 @@
-name: Build SRX Native Library
+name: Build Android NDK
 
 on:
   push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-arm64:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Setup Android NDK
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r25c
-          add-to-path: false
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r25c
+        add-to-path: true
 
-      - name: Build arm64-v8a
-        run: |
-          cmake -S . -B build/arm64-v8a \
-            -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-21 \
-            -DANDROID_STL=c++_static \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/arm64-v8a --config Release
+    - name: Build arm64-v8a
+      run: |
+        mkdir -p build_arm64
+        cd build_arm64
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=arm64-v8a \
+          -DANDROID_PLATFORM=android-21 \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build .
 
-      - name: Build armeabi-v7a
-        run: |
-          cmake -S . -B build/armeabi-v7a \
-            -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=armeabi-v7a \
-            -DANDROID_PLATFORM=android-21 \
-            -DANDROID_STL=c++_static \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/armeabi-v7a --config Release
+    - name: Upload arm64-v8a
+      uses: actions/upload-artifact@v4
+      with:
+        name: lib-arm64-v8a
+        path: build_arm64/libsrxmanager.so
 
-      - name: Prepare output folders
-        run: |
-          mkdir -p output/jniLibs/arm64-v8a
-          mkdir -p output/jniLibs/armeabi-v7a
+  build-armv7:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-          cp build/arm64-v8a/libsrxmanager.so output/jniLibs/arm64-v8a/libsrxmanager.so
-          cp build/armeabi-v7a/libsrxmanager.so output/jniLibs/armeabi-v7a/libsrxmanager.so
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r25c
+        add-to-path: true
 
-      - name: Create AAR library
-        run: |
-          mkdir -p aar/jni/arm64-v8a
-          mkdir -p aar/jni/armeabi-v7a
+    - name: Build armeabi-v7a
+      run: |
+        mkdir -p build_armv7
+        cd build_armv7
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup-ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=armeabi-v7a \
+          -DANDROID_PLATFORM=android-21 \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build .
 
-          cp build/arm64-v8a/libsrxmanager.so aar/jni/arm64-v8a/libsrxmanager.so
-          cp build/armeabi-v7a/libsrxmanager.so aar/jni/armeabi-v7a/libsrxmanager.so
-
-          cat > aar/AndroidManifest.xml <<EOF
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.srx.manager.srxsec" />
-          EOF
-
-          mkdir -p empty_classes
-          jar cf aar/classes.jar -C empty_classes .
-
-          cd aar
-          zip -r ../SrxSec.aar .
-          cd ..
-
-      - name: Upload raw jniLibs
-        uses: actions/upload-artifact@v4
-        with:
-          name: srxmanager-jniLibs
-          path: output/jniLibs
-
-      - name: Upload AAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: SrxSec-aar
-          path: SrxSec.aar
+    - name: Upload armeabi-v7a
+      uses: actions/upload-artifact@v4
+      with:
+        name: lib-armeabi-v7a
+        path: build_armv7/libsrxmanager.so
