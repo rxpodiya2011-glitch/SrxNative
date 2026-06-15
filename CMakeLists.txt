@@ -15,6 +15,8 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} \
     -Wl,--gc-sections \
     -fPIE -pie")
 
-add_library(srxmanager SHARED native-lib.cpp)
-find_library(log-lib log)
-target_link_libraries(srxmanager ${log-lib})
+add_library(
+    srxmanager
+    SHARED
+    native-lib.cpp
+)
